@@ -314,6 +314,9 @@ def parse_relative_date(text):
 
 # ---------- fungsi scraping yang memanfaatkan (browser) cookies jika ada ----------
 def get_low_rating_reviews(gmaps_link, max_scrolls=10000):
+    import undetected_chromedriver as uc
+    import shutil
+
     options = uc.ChromeOptions()
     options.headless = True
     options.add_argument("--headless=new")
@@ -321,9 +324,25 @@ def get_low_rating_reviews(gmaps_link, max_scrolls=10000):
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-dev-shm-usage")
     options.add_argument("--log-level=3")
-    options.binary_location = "/usr/bin/google-chrome"
-    options.add_argument("--remote-debugging-port=9222")  # kadang perlu
+    options.add_argument("--remote-debugging-port=9222")
+
+    # 🔍 deteksi otomatis lokasi binary Chromium di Railway
+    chrome_path = (
+        shutil.which("chromium")
+        or shutil.which("chromium-browser")
+        or shutil.which("google-chrome")
+    )
+    if chrome_path:
+        options.binary_location = chrome_path
+        print(f"✅ Chrome binary ditemukan di: {chrome_path}")
+    else:
+        raise FileNotFoundError(
+            "❌ Chrome/Chromium tidak ditemukan di container Railway. "
+            "Pastikan sudah diinstall lewat Dockerfile."
+        )
+
     driver = uc.Chrome(options=options)
+
 
 
     # jika ada browser_cookies simpanan, apply dulu
