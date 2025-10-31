@@ -1,16 +1,23 @@
+# Gunakan image Python ringan
 FROM python:3.10-slim
 
-RUN apt-get update && apt-get install -y wget gnupg ca-certificates --no-install-recommends && \
-    rm -rf /var/lib/apt/lists/*
-
+# Set working directory
 WORKDIR /app
 
+# Install Chrome & driver minimal
+RUN apt-get update && apt-get install -y \
+    chromium-driver chromium fonts-liberation \
+    libasound2 libatk-bridge2.0-0 libnss3 libxss1 libgbm1 libgtk-3-0 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Salin requirements
 COPY requirements.txt .
+
+# Install dependencies tanpa cache
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Install hanya Chromium, bukan semua browser
-RUN playwright install chromium --with-deps
-
+# Copy seluruh project
 COPY . .
 
-CMD ["python", "app.py"]
+# Jalankan Streamlit di Railway
+CMD ["streamlit", "run", "app.py", "--server.port=8080", "--server.address=0.0.0.0"]
