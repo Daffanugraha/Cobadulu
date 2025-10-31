@@ -178,10 +178,10 @@ def start_manual_google_login(timeout=300):
     options = Options()
     options.add_argument("--start-maximized")
     options.add_argument("--disable-blink-features=AutomationControlled")
-    driver = webdriver.Chrome(
-    service=Service(ChromeDriverManager(driver_version=None).install()),
-    options=options
-    )
+    service = Service()
+    options = webdriver.ChromeOptions()
+    driver = webdriver.Chrome(service=service, options=options)
+    
     try:
         driver.get("https://accounts.google.com/signin/v2/identifier")
         st.info("browser terbuka silakan login di jendela yang muncul selesaikan semua 2fa atau captcha jika muncul")
@@ -320,7 +320,9 @@ def get_low_rating_reviews(gmaps_link, max_scrolls=10000):
     options.add_argument("--disable-dev-shm-usage")
     options.add_argument("--log-level=3")
 
-    driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
+    service = Service()
+    options = webdriver.ChromeOptions()
+    driver = webdriver.Chrome(service=service, options=options)
 
     # jika ada browser_cookies simpanan, apply dulu
     browser_cookies = load_browser_cookies()
@@ -449,10 +451,9 @@ def auto_report_review(row, report_type=None):
     # tapi default di sini tetap non-headless option not set to headless so it will try open UI if environment supports it
     options.add_argument("--headless=new")
     options.add_argument("--disable-blink-features=AutomationControlled")
-    driver = webdriver.Chrome(
-    service=Service(ChromeDriverManager(driver_version=None).install()),
-    options=options
-    )
+    service = Service()
+    options = webdriver.ChromeOptions()
+    driver = webdriver.Chrome(service=service, options=options)
     # coba apply browser cookies jika ada
     browser_cookies = load_browser_cookies()
     if browser_cookies:
@@ -890,10 +891,9 @@ with col2:
 
             driver = None
             try:
-                driver = webdriver.Chrome(
-                service=Service(ChromeDriverManager(driver_version=None).install()),
-                options=options
-            )
+                service = Service()
+                options = webdriver.ChromeOptions()
+                driver = webdriver.Chrome(service=service, options=options)
                 driver.get(gmaps_link)
                 time.sleep(6)
 
