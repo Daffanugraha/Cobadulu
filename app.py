@@ -323,8 +323,8 @@ def get_low_rating_reviews(gmaps_link, max_scrolls=10000):
     options.add_argument("--log-level=3")
     options.binary_location = "/usr/bin/google-chrome"
     options.add_argument("--remote-debugging-port=9222")  # kadang perlu
-    
-     driver = uc.Chrome(options=options)
+    driver = uc.Chrome(options=options)
+
 
     # jika ada browser_cookies simpanan, apply dulu
     browser_cookies = load_browser_cookies()
