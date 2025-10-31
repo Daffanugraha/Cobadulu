@@ -1,9 +1,15 @@
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch==2.4.1+cpu
+torchvision==0.19.1+cpu
+torchaudio==2.4.1+cpu
+
+sentence_transformers==2.7.0
+transformers==4.45.1
 altair==5.5.0
 emoji==2.12.1
 nltk==3.8.1
 pandas==2.3.3
 playwright==1.55.0
 selenium==4.38.0
-sentence_transformers==2.7.0
 streamlit==1.40.2
 webdriver_manager==4.0.2
