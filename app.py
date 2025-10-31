@@ -324,7 +324,7 @@ def get_low_rating_reviews(gmaps_link, max_scrolls=10000):
 
 
     options = webdriver.ChromeOptions()
-    driver = webdriver.Chrome(options=options)
+    driver = webdriver.Chrome(options=options, executable_path=r'C:\path\to\chromedriver.exe')
 
     # jika ada browser_cookies simpanan, apply dulu
     browser_cookies = load_browser_cookies()
