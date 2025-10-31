@@ -141,29 +141,27 @@ def get_google_auth_url():
 
 
 def handle_oauth_callback():
-    """panggil saat ada query params dari Google (user dikembalikan setelah login)"""
-    params = st.experimental_get_query_params()
-    # pastikan ada code
+    params = st.query_params.to_dict()
     if "code" not in params:
         st.error("OAuth callback tidak berisi code")
         return False
-    query_string = st.experimental_get_query_string()
+
+    query_string = "&".join([f"{k}={v}" for k, v in params.items()])
     try:
         flow = build_flow()
-        # restore state kalau ada
         if "oauth_state" in st.session_state:
             flow.state = st.session_state["oauth_state"]
-        # google akan redirect ke REDIRECT_URI dengan query params, panggil fetch_token
+
         auth_response = REDIRECT_URI + "?" + query_string
         flow.fetch_token(authorization_response=auth_response)
+
         creds = flow.credentials
         oauth_json = creds.to_json()
-        # simpan oauth_json ke store (jangan ganggu browser_cookies jika ada)
         save_store(oauth_json=oauth_json)
         st.success("✅ Login berhasil. Token disimpan (valid 24 jam).")
         st.session_state["google_logged"] = True
-        # clear query params in URL by rerun (Streamlit keeps them though)
-        st.experimental_set_query_params()
+
+        st.query_params.clear()  # bersihkan URL
         st.experimental_rerun()
         return True
     except Exception as e:
@@ -698,7 +696,8 @@ if "google_logged" not in st.session_state:
 st.markdown("## Login Google Account")
 
 # jika google mengembalikan code di URL (callback)
-params = st.experimental_get_query_params()
+params = st.query_params.to_dict()
+
 if "code" in params:
     handle_oauth_callback()
 
