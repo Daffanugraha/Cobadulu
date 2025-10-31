@@ -320,7 +320,7 @@ def get_low_rating_reviews(gmaps_link, max_scrolls=10000):
     import pandas as pd
     from selenium.webdriver.common.by import By
 
-    options = webdriver.ChromeOptions()
+    options = uc.ChromeOptions()
     options.headless = True
     options.add_argument("--headless=new")
     options.add_argument("--disable-blink-features=AutomationControlled")
