@@ -16,3 +16,4 @@ webdriver_manager==4.0.2
 google-auth
 google-auth-oauthlib
 google-auth-httplib2
+undetected-chromedriver==3.4.6
