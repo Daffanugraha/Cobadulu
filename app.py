@@ -323,9 +323,6 @@ def get_low_rating_reviews(gmaps_link, max_scrolls=10000):
     options.add_argument("--remote-debugging-port=9222")  # kadang perlu
     service = Service(executable_path='./chromedriver.exe')
     
-
-
-    options = webdriver.ChromeOptions()
     driver = webdriver.Chrome(service=service, options=options)
 
     # jika ada browser_cookies simpanan, apply dulu
