@@ -1,3 +1,4 @@
+--extra-index-url https://download.pytorch.org/whl/cpu
 altair==5.5.0
 emoji==2.12.1
 nltk==3.8.1
@@ -7,4 +8,4 @@ streamlit==1.40.2
 webdriver_manager==4.0.2
 sentence_transformers==2.7.0
 onnxruntime==1.18.0
-torch==2.1.0+cpu --extra-index-url https://download.pytorch.org/whl/cpu
+torch==2.1.0
