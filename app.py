@@ -316,6 +316,9 @@ def parse_relative_date(text):
 def get_low_rating_reviews(gmaps_link, max_scrolls=10000):
     import undetected_chromedriver as uc
     import shutil
+    import time
+    import pandas as pd
+    from selenium.webdriver.common.by import By
 
     options = uc.ChromeOptions()
     options.headless = True
@@ -326,7 +329,7 @@ def get_low_rating_reviews(gmaps_link, max_scrolls=10000):
     options.add_argument("--log-level=3")
     options.add_argument("--remote-debugging-port=9222")
 
-    # 🔍 deteksi otomatis lokasi binary Chromium di Railway
+    # 🔍 deteksi otomatis lokasi Chrome / Chromium
     chrome_path = (
         shutil.which("chromium")
         or shutil.which("chromium-browser")
@@ -334,14 +337,14 @@ def get_low_rating_reviews(gmaps_link, max_scrolls=10000):
     )
     if chrome_path:
         options.binary_location = chrome_path
-        print(f"✅ Chrome binary ditemukan di: {chrome_path}")
     else:
-        raise FileNotFoundError(
-            "❌ Chrome/Chromium tidak ditemukan di container Railway. "
-            "Pastikan sudah diinstall lewat Dockerfile."
-        )
+        raise FileNotFoundError("Chrome/Chromium tidak ditemukan di container Railway.")
 
-    driver = uc.Chrome(options=options)
+    # 🚀 fix: gunakan subprocess agar tidak bentrok dengan chromedriver bawaan
+    try:
+        driver = uc.Chrome(options=options, use_subprocess=True)
+    except TypeError:
+        driver = uc.Chrome(options=options)
 
 
 
