@@ -25,6 +25,7 @@ from webdriver_manager.chrome import ChromeDriverManager
 from selenium.common.exceptions import WebDriverException
 from datetime import datetime, timedelta
 import json
+import undetected_chromedriver as uc
 
 # google oauth
 from google_auth_oauthlib.flow import Flow
@@ -313,7 +314,8 @@ def parse_relative_date(text):
 
 # ---------- fungsi scraping yang memanfaatkan (browser) cookies jika ada ----------
 def get_low_rating_reviews(gmaps_link, max_scrolls=10000):
-    options = Options()
+    options = uc.ChromeOptions()
+    options.headless = True
     options.add_argument("--headless=new")
     options.add_argument("--disable-blink-features=AutomationControlled")
     options.add_argument("--no-sandbox")
@@ -321,9 +323,8 @@ def get_low_rating_reviews(gmaps_link, max_scrolls=10000):
     options.add_argument("--log-level=3")
     options.binary_location = "/usr/bin/google-chrome"
     options.add_argument("--remote-debugging-port=9222")  # kadang perlu
-    service = Service(executable_path='./chromedriver.exe')
     
-    driver = webdriver.Chrome(service=service, options=options)
+     driver = uc.Chrome(options=options)
 
     # jika ada browser_cookies simpanan, apply dulu
     browser_cookies = load_browser_cookies()
