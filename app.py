@@ -313,7 +313,7 @@ def parse_relative_date(text):
 
 
 # ---------- fungsi scraping yang memanfaatkan (browser) cookies jika ada ----------
-def get_low_rating_reviews(gmaps_link, max_scrolls=10000):
+def get_low_rating_reviews(gmaps_link, max_scrolls=3000):
     import undetected_chromedriver as uc
     import shutil
     import time
@@ -383,7 +383,7 @@ def get_low_rating_reviews(gmaps_link, max_scrolls=10000):
     try:
         sort_button = driver.find_element(By.XPATH, "//button[contains(., 'Sort') or contains(., 'Urutkan')]")
         driver.execute_script("arguments[0].click();", sort_button)
-        time.sleep(1)
+        time.sleep(2)
         lowest = driver.find_elements(By.XPATH, "//*[contains(text(), 'Lowest rating') or contains(text(), 'Peringkat terendah')]")
         for opt in lowest:
             try:
