@@ -186,16 +186,15 @@ def start_manual_google_login(timeout=300):
     
     if chrome_path:
         options.binary_location = chrome_path
-        # Mendapatkan path driver UC yang akan digunakan
-        driver_path = uc.ChromeDriverManager().install() 
-        service = Service(driver_path) # Menggunakan Service
+        # HAPUS: driver_path = uc.ChromeDriverManager().install() 
+        # HAPUS: service = Service(driver_path) 
     else:
         st.error("Chromium binary not found.")
         return False
 
     try:
-        # PENTING: Gunakan Service object di uc.Chrome
-        driver = uc.Chrome(service=service, options=options)
+        # GANTI: Menggunakan uc.Chrome TANPA service object
+        driver = uc.Chrome(options=options)
     except Exception as e:
         st.error(f"Gagal inisialisasi browser untuk login manual: {e}")
         return False
@@ -322,7 +321,7 @@ def parse_relative_date(text):
 
 # ---------- fungsi scraping yang memanfaatkan (browser) cookies jika ada ----------
 def get_driver(headless=True):
-    """Fungsi helper untuk inisialisasi UC dengan konfigurasi Railway menggunakan Service."""
+    """Fungsi helper untuk inisialisasi UC dengan konfigurasi Railway. Kembali ke mode tanpa Service."""
     options = uc.ChromeOptions()
     
     if headless:
@@ -340,14 +339,12 @@ def get_driver(headless=True):
     else:
         raise FileNotFoundError("Chromium binary not found.")
     
-    # 2. Dapatkan Driver path dari UC (Ini penting, meskipun Service digunakan)
-    driver_path = uc.ChromeDriverManager().install()
+    # HAPUS LOGIKA SERVICE
+    # driver_path = uc.ChromeDriverManager().install()
+    # service = Service(driver_path)
     
-    # 3. Buat Service object dari driver path
-    service = Service(driver_path)
-    
-    # 4. Inisialisasi UC dengan Service object
-    return uc.Chrome(service=service, options=options)
+    # 2. Inisialisasi UC. UC akan otomatis mengurus driver path.
+    return uc.Chrome(options=options)
 
 
 def get_low_rating_reviews(gmaps_link, max_scrolls=10000):
@@ -627,8 +624,7 @@ def auto_report_review(row, report_type=None):
         function simulateClick(el) {{
         ['pointerdown','mousedown','mouseup','click'].forEach(evt => {{
             el.dispatchEvent(new MouseEvent(evt, {{ bubbles: true, cancelable: true, view: window }}));
-        }}));
-        }}
+        }});}};
 
         async function runCategoryClick(doc) {{
         const candidates = doc.querySelectorAll('[role="button"], div[role="link"], a, div');
