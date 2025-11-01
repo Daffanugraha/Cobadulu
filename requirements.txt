@@ -17,3 +17,4 @@ google-auth-oauthlib
 google-auth-httplib2
 undetected-chromedriver>=3.5.2
 python-dotenv==1.0.1
+webdriver-manager
