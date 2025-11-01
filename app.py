@@ -337,26 +337,28 @@ def get_low_rating_reviews(gmaps_link, max_scrolls=10000):
     # Log level lebih rendah (optional, untuk output bersih)
     options.add_argument("--log-level=3") 
     
-    if not chrome_path:
-        # Coba fallback ke nama biner yang lain
-        chrome_path = shutil.which("chromium-browser") or shutil.which("google-chrome")
+    chrome_path = None 
+    
+    # Cari biner yang paling mungkin diinstal di Railway
+    chrome_path = (
+        shutil.which("chromium")
+        or shutil.which("chromium-browser")
+        or shutil.which("google-chrome")
+    )
     
     if chrome_path:
+        # Jika ditemukan, atur binary_location
         options.binary_location = chrome_path
     else:
-        # Pesan error yang lebih jelas
+        # Jika GAGAL ditemukan (chrome_path tetap None), Raise Error
         raise FileNotFoundError(
             "Chrome/Chromium tidak ditemukan. Pastikan sudah terinstal di Dockerfile/Nixpacks Railway."
         )
 
-    # 3. INISIALISASI DRIVER YANG DISARANKAN
-    # Hapus try/except yang menggunakan use_subprocess=True yang bermasalah.
+    # 3. INISIALISASI DRIVER
     try:
-        # UC otomatis menangani chromedriver. Jangan gunakan use_subprocess=True
         driver = uc.Chrome(options=options) 
-        
     except Exception as e:
-        # Penanganan error umum jika inisialisasi gagal
         print(f"Gagal menginisialisasi undetected_chromedriver: {e}")
         raise e
 
