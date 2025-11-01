@@ -32,7 +32,7 @@ from google_auth_oauthlib.flow import Flow
 from google.oauth2.credentials import Credentials
 
 # ---------- konfigurasi ----------
-COOKIE_STORE_FILE = "gmaps_cookies.pkl"   # menyimpan oauth json dan/atau browser cookies
+COOKIE_STORE_FILE = "gmaps_cookies.pkl"
 COOKIE_EXPIRY_HOURS = 24
 nltk.download("stopwords")
 stop_words = set(stopwords.words("english"))
@@ -162,7 +162,7 @@ def handle_oauth_callback():
         st.success("✅ Login berhasil. Token disimpan (valid 24 jam).")
         st.session_state["google_logged"] = True
 
-        st.query_params.clear()  # bersihkan URL
+        st.query_params.clear()
         st.experimental_rerun()
         return True
     except Exception as e:
@@ -179,7 +179,8 @@ def start_manual_google_login(timeout=300):
     options = Options()
     options.add_argument("--start-maximized")
     options.add_argument("--disable-blink-features=AutomationControlled")
-    service = Service()
+    # Menggunakan WDM untuk mendapatkan service
+    service = Service(ChromeDriverManager().install()) 
     options = webdriver.ChromeOptions()
     driver = webdriver.Chrome(service=service, options=options)
     
@@ -312,8 +313,8 @@ def parse_relative_date(text):
         return text
 
 
-# ---------- fungsi scraping yang memanfaatkan (browser) cookies jika ada ----------
-def get_low_rating_reviews(gmaps_link, max_scrolls=3000):
+# ---------- fungsi scraping yang memanfaatkan (browser) cookies jika ada (MODIFIED for stability) ----------
+def get_low_rating_reviews(gmaps_link, max_scrolls=10000):
     import undetected_chromedriver as uc
     import shutil
     import time
@@ -324,11 +325,16 @@ def get_low_rating_reviews(gmaps_link, max_scrolls=3000):
     options.headless = True
     options.add_argument("--headless=new")
     options.add_argument("--no-sandbox")
-    options.add_argument("--disable-dev-shm-usage")  # penting untuk mencegah tab crash
+    options.add_argument("--disable-dev-shm-usage")  # PENTING
     options.add_argument("--disable-gpu")
     options.add_argument("--disable-extensions")
     options.add_argument("--log-level=3")
     options.add_argument("--disable-blink-features=AutomationControlled")
+    # Opsi tambahan untuk efisiensi memori:
+    options.add_argument("--disable-background-timer-throttling")
+    options.add_argument("--disable-backgrounding-occluded-windows")
+    options.add_argument("--disable-renderer-backgrounding")
+    options.add_argument("--mute-audio")
 
 
     # 🔍 deteksi otomatis lokasi Chrome / Chromium
@@ -340,14 +346,16 @@ def get_low_rating_reviews(gmaps_link, max_scrolls=3000):
     if chrome_path:
         options.binary_location = chrome_path
     else:
-        raise FileNotFoundError("Chrome/Chromium tidak ditemukan di container Railway.")
+        st.warning("Chrome/Chromium tidak ditemukan. Mencoba menggunakan driver bawaan.")
+
 
     # 🚀 fix: gunakan subprocess agar tidak bentrok dengan chromedriver bawaan
     try:
         driver = uc.Chrome(options=options, use_subprocess=True)
     except TypeError:
         driver = uc.Chrome(options=options)
-
+    except Exception as e:
+        raise WebDriverException(f"Gagal menginisialisasi Chrome driver (tab crashed mungkin karena ini): {e}")
 
 
     # jika ada browser_cookies simpanan, apply dulu
@@ -363,9 +371,9 @@ def get_low_rating_reviews(gmaps_link, max_scrolls=3000):
             st.warning(f"gagal apply browser cookies {e}")
 
     driver.get(gmaps_link)
-    time.sleep(5)
+    time.sleep(7) # Ditingkatkan dari 5 ke 7 detik untuk loading awal
 
-     # --- Auto-detect place name ---
+    # --- Auto-detect place name ---
     try:
         place_name = driver.find_element(By.XPATH, "//h1[contains(@class, 'DUwDvf')]").text.strip()
     except Exception:
@@ -375,7 +383,7 @@ def get_low_rating_reviews(gmaps_link, max_scrolls=3000):
     try:
         review_tab = driver.find_element(By.XPATH, "//button[contains(., 'Reviews') or contains(., 'Ulasan')]")
         driver.execute_script("arguments[0].click();", review_tab)
-        time.sleep(2)
+        time.sleep(3) # Ditingkatkan dari 2 ke 3 detik
     except Exception:
         pass
 
@@ -383,7 +391,7 @@ def get_low_rating_reviews(gmaps_link, max_scrolls=3000):
     try:
         sort_button = driver.find_element(By.XPATH, "//button[contains(., 'Sort') or contains(., 'Urutkan')]")
         driver.execute_script("arguments[0].click();", sort_button)
-        time.sleep(2)
+        time.sleep(2) 
         lowest = driver.find_elements(By.XPATH, "//*[contains(text(), 'Lowest rating') or contains(text(), 'Peringkat terendah')]")
         for opt in lowest:
             try:
@@ -391,11 +399,11 @@ def get_low_rating_reviews(gmaps_link, max_scrolls=3000):
                 break
             except Exception:
                 continue
-        time.sleep(2)
+        time.sleep(4) # Ditingkatkan dari 2 ke 4 detik (penting setelah sorting)
     except Exception:
         pass
 
-    # --- Scroll efficiently ---
+    # --- Scroll yang Dioptimalkan (Anti-Crash) ---
     try:
         scrollable_div = driver.find_element(By.XPATH, "//div[contains(@class,'m6QErb') and contains(@class,'DxyBCb')]")
     except Exception:
@@ -406,20 +414,25 @@ def get_low_rating_reviews(gmaps_link, max_scrolls=3000):
         same_count = 0
         for i in range(max_scrolls):
             driver.execute_script("arguments[0].scrollTop = arguments[0].scrollHeight", scrollable_div)
-            time.sleep(0.5)
+            
+            # 💡 OPTIMASI STABILITAS: Waktu tunggu lebih lama
+            time.sleep(1.5) 
+            
             new_height = driver.execute_script("return arguments[0].scrollTop", scrollable_div)
+            
             if new_height == last_height:
                 same_count += 1
-                if same_count >= 2:
+                # 💡 OPTIMASI AKURASI: Batas break dilonggarkan
+                if same_count >= 5: 
                     break
             else:
                 same_count = 0
             last_height = new_height
     else:
         # fallback scroll page
-        for _ in range(2):
+        for _ in range(5): 
             driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-            time.sleep(1)
+            time.sleep(2) 
 
     # --- Extract all reviews ---
     blocks = driver.find_elements(By.CLASS_NAME, "jftiEf")
@@ -477,15 +490,21 @@ def get_low_rating_reviews(gmaps_link, max_scrolls=3000):
     return df, place_name
 
 
-
 def auto_report_review(row, report_type=None):
     options = Options()
-    # untuk report kita jalankan non-headless agar lebih mirip interaksi user jika admin mau,
-    # tapi default di sini tetap non-headless option not set to headless so it will try open UI if environment supports it
+    # Ganti service inisialisasi untuk kompatibilitas WDM/Container
+    try:
+        service = Service(ChromeDriverManager().install())
+    except Exception:
+        service = Service()  # Fallback jika WDM gagal
+        
+    # Ganti inisialisasi driver
     options.add_argument("--headless=new")
     options.add_argument("--disable-blink-features=AutomationControlled")
-    service = Service()
-    options = webdriver.ChromeOptions()
+    options.add_argument("--no-sandbox")
+    options.add_argument("--disable-dev-shm-usage") 
+    options.add_argument("--disable-gpu") 
+    
     driver = webdriver.Chrome(service=service, options=options)
     # coba apply browser cookies jika ada
     browser_cookies = load_browser_cookies()
@@ -859,7 +878,7 @@ with col1:
         for idx, row in df_show.iterrows():
             with st.container():
                 st.markdown(f"**👤 {row['User']}** — ⭐ {row['Rating']}")
-                st.markdown(f"🕒 {row['Date (Parsed)']}  |  {row['Total Reviews']}")
+                st.markdown(f"🕒 {row['Date (Parsed)']}  |  {row['Total Reviews']}")
                 st.markdown(f"💬 {row['Review Text'] or '_(tidak ada teks)_'}")
 
                 category, score = classify_report_category(row["Review Text"])
@@ -1028,7 +1047,7 @@ with col2:
 
         summary_df = rating_counts.rename_axis("Rating").reset_index(name="Jumlah Review")
         warna = {2: "#FFC107", 1: "#F44336"}
-        summary_df["Warna"] = summary_df["Rating"].map("warna")
+        summary_df["Warna"] = summary_df["Rating"].map(warna)
 
         pie_chart = (
             alt.Chart(summary_df)
