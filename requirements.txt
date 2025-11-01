@@ -12,7 +12,6 @@ pandas==2.3.3
 playwright==1.55.0
 selenium==4.38.0
 streamlit==1.40.2
-webdriver_manager==4.0.2
 google-auth
 google-auth-oauthlib
 google-auth-httplib2
