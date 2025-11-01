@@ -328,14 +328,17 @@ def get_low_rating_reviews(gmaps_link, max_scrolls=10000):
     options.add_argument("--disable-gpu")
     options.add_argument("--disable-extensions")
     options.add_argument("--disable-software-rasterizer")
+    options.add_argument("--blink-settings=imagesEnabled=false")
     options.add_argument("--disable-background-timer-throttling")
     options.add_argument("--disable-backgrounding-occluded-windows")
     options.add_argument("--disable-renderer-backgrounding")
     options.add_argument("--disable-infobars")
-    options.add_argument("--window-size=1920,1080")
+    options.add_argument("--window-size=")
     options.add_argument("--log-level=3")
     options.add_argument("--remote-debugging-port=9222")
     options.add_argument("--disable-blink-features=AutomationControlled")
+    options.add_argument("--window-size=1280,720")
+
 
     # 🔍 deteksi otomatis lokasi Chrome / Chromium
     chrome_path = (
@@ -408,8 +411,12 @@ def get_low_rating_reviews(gmaps_link, max_scrolls=10000):
         same_count = 0
         for i in range(max_scrolls):
             driver.execute_script("arguments[0].scrollTop = arguments[0].scrollHeight", scrollable_div)
-            time.sleep(0.5)
+            time.sleep(2)
             new_height = driver.execute_script("return arguments[0].scrollTop", scrollable_div)
+
+                    # Log setiap 500 scroll
+            if i % 500 == 0 and i > 0:
+                time.sleep(5)  # jeda 10 detik tiap 500 scroll
             if new_height == last_height:
                 same_count += 1
                 if same_count >= 2:
