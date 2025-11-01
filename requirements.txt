@@ -10,7 +10,7 @@ emoji==2.12.1
 nltk==3.8.1
 pandas==2.3.3
 playwright==1.55.0
-selenium==4.38.0
+selenium>=4.20.0
 streamlit==1.40.2
 google-auth
 google-auth-oauthlib
