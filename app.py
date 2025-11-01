@@ -17,22 +17,23 @@ import altair as alt
 import urllib.parse
 from selenium import webdriver
 from selenium.webdriver.common.by import By
-# Service, ChromeDriverManager, dan Options standar Selenium TIDAK LAGI DIGUNAKAN
-from selenium.webdriver.chrome.options import Options as S_Options # Dipertahankan hanya untuk tipe data
+# IMPOR KRITIS: Menggunakan Service untuk kompatibilitas modern Selenium 4+
+from selenium.webdriver.chrome.service import Service 
+from selenium.webdriver.chrome.options import Options as S_Options 
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import WebDriverException
 from datetime import datetime, timedelta
 import json
 import undetected_chromedriver as uc
-import shutil # Diperlukan untuk mencari biner
+import shutil
 
 # google oauth
 from google_auth_oauthlib.flow import Flow
 from google.oauth2.credentials import Credentials
 
 # ---------- konfigurasi ----------
-COOKIE_STORE_FILE = "gmaps_cookies.pkl"    # menyimpan oauth json dan/atau browser cookies
+COOKIE_STORE_FILE = "gmaps_cookies.pkl"    
 COOKIE_EXPIRY_HOURS = 24
 nltk.download("stopwords")
 stop_words = set(stopwords.words("english"))
@@ -44,16 +45,15 @@ CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
 REDIRECT_URI = os.getenv("REDIRECT_URI")
 
 report_categories = [
-    "Off topic",
-    "Spam",
-    "Conflict of interest",
-    "Profanity",
-    "Bullying or harassment",
-    "Discrimination or hate speech",
-    "Personal information",
-    "Not helpful"
+    "Off topic", "Spam", "Conflict of interest", "Profanity", 
+    "Bullying or harassment", "Discrimination or hate speech", 
+    "Personal information", "Not helpful"
 ]
 
+# (Helper functions save_store, load_store, load_browser_cookies, load_oauth_json, is_store_present, 
+# build_flow, get_google_auth_url, handle_oauth_callback, apply_cookies_to_driver, 
+# check_logged_in_via_driver, classify_report_category, clean_review_text_en, parse_relative_date 
+# TIDAK BERUBAH)
 
 # ---------- helper fungsi untuk cookie store (oauth + optional browser cookies) ----------
 def save_store(oauth_json=None, browser_cookies=None, path=COOKIE_STORE_FILE):
@@ -174,28 +174,28 @@ def handle_oauth_callback():
 def start_manual_google_login(timeout=300):
     """
     MASIH DIGUNAKAN HANYA UNTUK DEV. Fungsi ini menyimpan browser cookies ke store.
-    MENGGUNAKAN UC.
+    MENGGUNAKAN UC dan Service.
     """
     options = uc.ChromeOptions()
-    # NON-HEADLESS di Railway hampir pasti GAGAL karena tidak ada GUI/display server.
-    # Namun, opsi ini dipertahankan untuk jika dev menggunakannya secara lokal.
-    # options.add_argument("--start-maximized") # Dihapus karena konflik
     options.add_argument("--disable-blink-features=AutomationControlled")
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-dev-shm-usage")
-    options.add_argument("--headless=new") # Wajibkan headless di Railway
+    options.add_argument("--headless=new") 
     
-    # Deteksi lokasi biner Chromium (Wajib di container)
     chrome_path = shutil.which("chromium") or shutil.which("chromium-browser") or shutil.which("google-chrome")
+    
     if chrome_path:
         options.binary_location = chrome_path
+        # Mendapatkan path driver UC yang akan digunakan
+        driver_path = uc.ChromeDriverManager().install() 
+        service = Service(driver_path) # Menggunakan Service
     else:
         st.error("Chromium binary not found.")
         return False
 
     try:
-        # GANTI: Menggunakan uc.Chrome (tanpa service/executable_path)
-        driver = uc.Chrome(options=options)
+        # PENTING: Gunakan Service object di uc.Chrome
+        driver = uc.Chrome(service=service, options=options)
     except Exception as e:
         st.error(f"Gagal inisialisasi browser untuk login manual: {e}")
         return False
@@ -206,7 +206,6 @@ def start_manual_google_login(timeout=300):
         start = time.time()
         while True:
             current_url = driver.current_url
-            # Cek apakah URL sudah pindah dari halaman login Google
             if "accounts.google.com" not in current_url or driver.title != "Sign in":
                 cookies = driver.get_cookies()
                 save_store(browser_cookies=cookies)
@@ -263,7 +262,6 @@ def check_logged_in_via_driver(driver, timeout=10):
     start = time.time()
     while time.time() - start < timeout:
         try:
-            # Menggunakan XPath yang lebih sederhana
             if driver.find_elements(By.XPATH, "//*[contains(@aria-label,'Google Account')]") or \
                driver.find_elements(By.XPATH, "//*[contains(text(),'Sign out') or contains(text(),'Keluar')]"):
                 return True
@@ -323,52 +321,43 @@ def parse_relative_date(text):
 
 
 # ---------- fungsi scraping yang memanfaatkan (browser) cookies jika ada ----------
-def get_low_rating_reviews(gmaps_link, max_scrolls=10000):
-    # Tidak perlu import ulang, tapi ini tidak merusak
-    # import undetected_chromedriver as uc
-    # import shutil
-    # import time
-    # import pandas as pd
-    # from selenium.webdriver.common.by import By
-
+def get_driver(headless=True):
+    """Fungsi helper untuk inisialisasi UC dengan konfigurasi Railway menggunakan Service."""
     options = uc.ChromeOptions()
     
-    # 1. PENGATURAN CHROME OPTIONS (WAJIB DI CONTAINER)
-    options.add_argument("--headless=new") 
+    if headless:
+        options.add_argument("--headless=new")
+    
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-dev-shm-usage")
-    options.add_argument("--disable-gpu") 
+    options.add_argument("--disable-gpu")
     options.add_argument("--disable-blink-features=AutomationControlled")
-    options.add_argument("--log-level=3") 
     
-    chrome_path = None 
-    
-    # Cari biner yang paling mungkin diinstal di Railway
-    chrome_path = (
-        shutil.which("chromium")
-        or shutil.which("chromium-browser")
-        or shutil.which("google-chrome")
-    )
-    
+    # 1. Deteksi lokasi biner Chromium
+    chrome_path = shutil.which("chromium") or shutil.which("chromium-browser") or shutil.which("google-chrome")
     if chrome_path:
-        # Jika ditemukan, atur binary_location
         options.binary_location = chrome_path
     else:
-        # Jika GAGAL ditemukan (chrome_path tetap None), Raise Error
-        raise FileNotFoundError(
-            "Chrome/Chromium tidak ditemukan. Pastikan sudah terinstal di Dockerfile/Nixpacks Railway."
-        )
+        raise FileNotFoundError("Chromium binary not found.")
+    
+    # 2. Dapatkan Driver path dari UC (Ini penting, meskipun Service digunakan)
+    driver_path = uc.ChromeDriverManager().install()
+    
+    # 3. Buat Service object dari driver path
+    service = Service(driver_path)
+    
+    # 4. Inisialisasi UC dengan Service object
+    return uc.Chrome(service=service, options=options)
 
-    # 3. INISIALISASI DRIVER
+
+def get_low_rating_reviews(gmaps_link, max_scrolls=10000):
     try:
-        # Gunakan uc.Chrome (TANPA service/executable_path)
-        driver = uc.Chrome(options=options) 
+        driver = get_driver(headless=True)
     except Exception as e:
         print(f"Gagal menginisialisasi undetected_chromedriver: {e}")
         raise e
 
 
-    # jika ada browser_cookies simpanan, apply dulu
     browser_cookies = load_browser_cookies()
     if browser_cookies:
         try:
@@ -489,33 +478,9 @@ def get_low_rating_reviews(gmaps_link, max_scrolls=10000):
     return df, place_name
 
 
-def get_driver(headless=True):
-    """Fungsi helper untuk inisialisasi UC dengan konfigurasi Railway"""
-    options = uc.ChromeOptions()
-    
-    if headless:
-        options.add_argument("--headless=new")
-    
-    options.add_argument("--no-sandbox")
-    options.add_argument("--disable-dev-shm-usage")
-    options.add_argument("--disable-gpu")
-    options.add_argument("--disable-blink-features=AutomationControlled")
-    
-    # Deteksi lokasi biner Chromium (Wajib di container)
-    chrome_path = shutil.which("chromium") or shutil.which("chromium-browser") or shutil.which("google-chrome")
-    if chrome_path:
-        options.binary_location = chrome_path
-    else:
-        raise FileNotFoundError("Chromium binary not found.")
-    
-    return uc.Chrome(options=options)
-
-
 def auto_report_review(row, report_type=None):
     
-    # GANTI: Menggunakan fungsi helper get_driver
     try:
-        # Gunakan headless untuk report karena ini otomatis dan berjalan di server
         driver = get_driver(headless=True) 
     except Exception as e:
         st.error(f"Gagal inisialisasi browser untuk report: {e}")
@@ -644,57 +609,58 @@ def auto_report_review(row, report_type=None):
             time.sleep(2)
 
         # click category (JS)
-        js_click_category = 'const target = "' + report_type + '".toLowerCase().trim();\n\n        ' + """
-        function sleep(ms) {
+        js_click_category = f"""
+        const target = "{report_type}".toLowerCase().trim();
+
+        function sleep(ms) {{
             return new Promise(resolve => setTimeout(resolve, ms));
-        }
+        }}
 
-        function highlight(el) {
-            el.style.transition = "all 0.3s ease";
-            el.style.border = "3px solid red";
-            el.style.backgroundColor = "yellow";
-            el.scrollIntoView({behavior:'smooth',block:'center'});
-        }
 
-        function simulateClick(el) {
-            ['pointerdown','mousedown','mouseup','click'].forEach(evt => {
-                el.dispatchEvent(new MouseEvent(evt, { bubbles: true, cancelable: true, view: window }));
-            });
-        }
+        function highlight(el) {{
+        el.style.transition = "all 0.3s ease";
+        el.style.border = "3px solid red";
+        el.style.backgroundColor = "yellow";
+        el.scrollIntoView({{behavior:'smooth',block:'center'}});
+        }}
 
-        async function runCategoryClick(doc) {
-            const candidates = doc.querySelectorAll('[role="button"], div[role="link"], a, div');
+        function simulateClick(el) {{
+        ['pointerdown','mousedown','mouseup','click'].forEach(evt => {{
+            el.dispatchEvent(new MouseEvent(evt, {{ bubbles: true, cancelable: true, view: window }}));
+        }}));
+        }}
 
-            for (let el of candidates) {
-                let text = (el.innerText || "").toLowerCase().trim();
+        async function runCategoryClick(doc) {{
+        const candidates = doc.querySelectorAll('[role="button"], div[role="link"], a, div');
 
-                // pastikan elemennya hanya mengandung satu kategori, bukan seluruh popup
-                if (text.includes(target) && text.length < 60) {
-                    highlight(el);
-                    await sleep(3000); // delay 3 detik
-                    simulateClick(el);
-                    return "✅ Clicked category: " + text;
-                }
-            }
-            return null;
-        }
+        for (let el of candidates) {{
+            let text = (el.innerText || "").toLowerCase().trim();
 
-        async function start() {
-            let res = await runCategoryClick(document);
-            if (res) return res;
+            if (text.includes(target) && text.length < 60) {{
+            highlight(el);
+            await sleep(3000); 
+            simulateClick(el);
+            return "✅ Clicked category: " + text;
+            }}
+        }}
+        return null;
+        }}
 
-            // cek iframe jika ada
-            for (let frame of document.querySelectorAll('iframe')) {
-                try {
-                    let doc = frame.contentDocument || frame.contentWindow.document;
-                    res = await runCategoryClick(doc);
-                    if (res) return res + " (inside iframe)";
-                } catch(e) {
-                    continue;
-                }
-            }
-            return "⚠️ Category not found: " + target;
-        }
+        async function start() {{
+        let res = await runCategoryClick(document);
+        if (res) return res;
+
+        for (let frame of document.querySelectorAll('iframe')) {{
+            try {{
+            let doc = frame.contentDocument || frame.contentWindow.document;
+            res = await runCategoryClick(doc);
+            if (res) return res + " (inside iframe)";
+            }} catch(e) {{
+            continue;
+            }}
+        }}
+        return "⚠️ Category not found: " + target;
+        }}
 
         return await start();
         """
@@ -950,7 +916,7 @@ with col2:
             # Inisialisasi driver untuk mengambil distribusi rating
             driver = None
             try:
-                driver = get_driver(headless=True) # GANTI: Menggunakan fungsi helper
+                driver = get_driver(headless=True) 
                 driver.get(gmaps_link)
                 time.sleep(6)
 
@@ -1051,3 +1017,12 @@ with col2:
             )
             .properties(height=350)
         )
+
+        st.dataframe(summary_df.drop(columns=["Warna"]), use_container_width=True, hide_index=True)
+        st.altair_chart(pie_chart, use_container_width=True)
+
+        total_reviews = rating_counts.sum()
+        st.markdown(f"**Overall Rating (1–2 stars): {place_name}** {total_reviews}")
+
+    else:
+        st.info("Belum ada data review untuk diringkas.")
