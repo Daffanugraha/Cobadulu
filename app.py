@@ -327,17 +327,8 @@ def get_low_rating_reviews(gmaps_link, max_scrolls=10000):
     options.add_argument("--disable-dev-shm-usage")  # penting untuk mencegah tab crash
     options.add_argument("--disable-gpu")
     options.add_argument("--disable-extensions")
-    options.add_argument("--disable-software-rasterizer")
-    options.add_argument("--blink-settings=imagesEnabled=false")
-    options.add_argument("--disable-background-timer-throttling")
-    options.add_argument("--disable-backgrounding-occluded-windows")
-    options.add_argument("--disable-renderer-backgrounding")
-    options.add_argument("--disable-infobars")
-    options.add_argument("--window-size=")
     options.add_argument("--log-level=3")
-    options.add_argument("--remote-debugging-port=9222")
     options.add_argument("--disable-blink-features=AutomationControlled")
-    options.add_argument("--window-size=1280,720")
 
 
     # 🔍 deteksi otomatis lokasi Chrome / Chromium
