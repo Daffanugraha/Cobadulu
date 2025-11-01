@@ -323,11 +323,19 @@ def get_low_rating_reviews(gmaps_link, max_scrolls=10000):
     options = uc.ChromeOptions()
     options.headless = True
     options.add_argument("--headless=new")
-    options.add_argument("--disable-blink-features=AutomationControlled")
     options.add_argument("--no-sandbox")
-    options.add_argument("--disable-dev-shm-usage")
+    options.add_argument("--disable-dev-shm-usage")  # penting untuk mencegah tab crash
+    options.add_argument("--disable-gpu")
+    options.add_argument("--disable-extensions")
+    options.add_argument("--disable-software-rasterizer")
+    options.add_argument("--disable-background-timer-throttling")
+    options.add_argument("--disable-backgrounding-occluded-windows")
+    options.add_argument("--disable-renderer-backgrounding")
+    options.add_argument("--disable-infobars")
+    options.add_argument("--window-size=1920,1080")
     options.add_argument("--log-level=3")
     options.add_argument("--remote-debugging-port=9222")
+    options.add_argument("--disable-blink-features=AutomationControlled")
 
     # 🔍 deteksi otomatis lokasi Chrome / Chromium
     chrome_path = (
