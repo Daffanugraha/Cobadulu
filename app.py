@@ -321,30 +321,44 @@ def get_low_rating_reviews(gmaps_link, max_scrolls=10000):
     from selenium.webdriver.common.by import By
 
     options = uc.ChromeOptions()
-    options.headless = True
-    options.add_argument("--headless=new")
-    options.add_argument("--disable-blink-features=AutomationControlled")
+    
+    # 1. PENGATURAN CHROME OPTIONS (WAJIB DI CONTAINER)
+    # Gunakan mode headless baru
+    options.add_argument("--headless=new") 
+    
+    # Pencegahan crash dan masalah container
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-dev-shm-usage")
-    options.add_argument("--log-level=3")
-    options.add_argument("--remote-debugging-port=9222")
-
-    # 🔍 deteksi otomatis lokasi Chrome / Chromium
-    chrome_path = (
-        shutil.which("chromium")
-        or shutil.which("chromium-browser")
-        or shutil.which("google-chrome")
-    )
+    options.add_argument("--disable-gpu") # Tambahkan ini untuk stabilitas
+    
+    # Pencegahan deteksi
+    options.add_argument("--disable-blink-features=AutomationControlled")
+    
+    # Log level lebih rendah (optional, untuk output bersih)
+    options.add_argument("--log-level=3") 
+    
+    if not chrome_path:
+        # Coba fallback ke nama biner yang lain
+        chrome_path = shutil.which("chromium-browser") or shutil.which("google-chrome")
+    
     if chrome_path:
         options.binary_location = chrome_path
     else:
-        raise FileNotFoundError("Chrome/Chromium tidak ditemukan di container Railway.")
+        # Pesan error yang lebih jelas
+        raise FileNotFoundError(
+            "Chrome/Chromium tidak ditemukan. Pastikan sudah terinstal di Dockerfile/Nixpacks Railway."
+        )
 
-    # 🚀 fix: gunakan subprocess agar tidak bentrok dengan chromedriver bawaan
+    # 3. INISIALISASI DRIVER YANG DISARANKAN
+    # Hapus try/except yang menggunakan use_subprocess=True yang bermasalah.
     try:
-        driver = uc.Chrome(options=options, use_subprocess=True)
-    except TypeError:
-        driver = uc.Chrome(options=options)
+        # UC otomatis menangani chromedriver. Jangan gunakan use_subprocess=True
+        driver = uc.Chrome(options=options) 
+        
+    except Exception as e:
+        # Penanganan error umum jika inisialisasi gagal
+        print(f"Gagal menginisialisasi undetected_chromedriver: {e}")
+        raise e
 
 
 
