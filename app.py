@@ -374,11 +374,13 @@ def get_low_rating_reviews(gmaps_link, max_scrolls=10000):
     driver.get(gmaps_link)
     time.sleep(5)
 
+     # --- Auto-detect place name ---
     try:
         place_name = driver.find_element(By.XPATH, "//h1[contains(@class, 'DUwDvf')]").text.strip()
     except Exception:
         place_name = "Unknown_Place"
 
+    # --- Click Reviews tab ---
     try:
         review_tab = driver.find_element(By.XPATH, "//button[contains(., 'Reviews') or contains(., 'Ulasan')]")
         driver.execute_script("arguments[0].click();", review_tab)
@@ -386,6 +388,7 @@ def get_low_rating_reviews(gmaps_link, max_scrolls=10000):
     except Exception:
         pass
 
+    # --- Sort by lowest rating ---
     try:
         sort_button = driver.find_element(By.XPATH, "//button[contains(., 'Sort') or contains(., 'Urutkan')]")
         driver.execute_script("arguments[0].click();", sort_button)
@@ -401,6 +404,7 @@ def get_low_rating_reviews(gmaps_link, max_scrolls=10000):
     except Exception:
         pass
 
+    # --- Scroll efficiently ---
     try:
         scrollable_div = driver.find_element(By.XPATH, "//div[contains(@class,'m6QErb') and contains(@class,'DxyBCb')]")
     except Exception:
@@ -411,12 +415,8 @@ def get_low_rating_reviews(gmaps_link, max_scrolls=10000):
         same_count = 0
         for i in range(max_scrolls):
             driver.execute_script("arguments[0].scrollTop = arguments[0].scrollHeight", scrollable_div)
-            time.sleep(2)
+            time.sleep(0.5)
             new_height = driver.execute_script("return arguments[0].scrollTop", scrollable_div)
-
-                    # Log setiap 500 scroll
-            if i % 500 == 0 and i > 0:
-                time.sleep(5)  # jeda 10 detik tiap 500 scroll
             if new_height == last_height:
                 same_count += 1
                 if same_count >= 2:
@@ -425,10 +425,12 @@ def get_low_rating_reviews(gmaps_link, max_scrolls=10000):
                 same_count = 0
             last_height = new_height
     else:
+        # fallback scroll page
         for _ in range(2):
             driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
             time.sleep(1)
 
+    # --- Extract all reviews ---
     blocks = driver.find_elements(By.CLASS_NAME, "jftiEf")
     data = []
 
@@ -482,6 +484,7 @@ def get_low_rating_reviews(gmaps_link, max_scrolls=10000):
     df = pd.DataFrame(data)
     df["Place"] = place_name
     return df, place_name
+
 
 
 def auto_report_review(row, report_type=None):
@@ -815,30 +818,36 @@ with col1:
             per_page = int(per_page)
             total_pages = (len(df) - 1) // per_page + 1
 
+            # Inisialisasi session state untuk pagination
             if "current_page" not in st.session_state:
                 st.session_state.current_page = 1
 
+            # Fungsi pindah halaman
             def set_page(p):
                 st.session_state.current_page = p
 
+            # Hitung index awal dan akhir
             page = st.session_state.current_page
             start_idx = (page - 1) * per_page
             end_idx = start_idx + per_page
             df_show = df.iloc[start_idx:end_idx]
             st.write(f"Showing {start_idx+1}–{min(end_idx, len(df))} of {len(df)} reviews.")
 
+            # Tampilkan tombol pagination
             st.write("### 📄 Page")
-            page_cols = st.columns(min(total_pages, 10))
+            page_cols = st.columns(min(total_pages, 10))  # Maks 10 tombol per baris
 
             for i in range(total_pages):
-                col = page_cols[i % 10]
+                col = page_cols[i % 10]  # ulang tiap 10 kolom
                 with col:
                     page_num = i + 1
                     if st.button(str(page_num), key=f"page_btn_{page_num}"):
                         set_page(page_num)
+
         else:
             df_show = df
             st.write(f"Showing all {len(df)} reviews.")
+
 
         st.markdown("### 💬 Review Table (click 🚨 to mark)")
 
@@ -847,13 +856,15 @@ with col1:
                 reported_count = 0
                 for idx, row in df_show.iterrows():
                     category, score = classify_report_category(row["Review Text"])
-                    auto_report_review(row, category)
+                    auto_report_review(row, category)  # Langsung report berdasarkan prediksi otomatis
                     reported_count += 1
                 st.success(f"✅ Berhasil mereport otomatis {reported_count} review berdasarkan prediksi AI!")
             else:
                 st.warning("Tidak ada review untuk direport.")
 
+
         df_show = df_show.copy()
+        # --- tampilkan tiap review ---
         for idx, row in df_show.iterrows():
             with st.container():
                 st.markdown(f"**👤 {row['User']}** — ⭐ {row['Rating']}")
@@ -870,6 +881,7 @@ with col1:
                     key=f"choice_{idx}"
                 )
 
+                # cek apakah review ini sudah pernah direport
                 if "reported" not in st.session_state:
                     st.session_state["reported"] = []
 
@@ -878,18 +890,22 @@ with col1:
                     for r in st.session_state["reported"]
                 )
 
+                # tombol report otomatis
                 if already_reported:
                     st.button("✅ Already Reported", key=f"reported_{idx}", disabled=True)
                 else:
                     if st.button("🚨 Automatic Report", key=f"report_{idx}"):
                         try:
                             auto_report_review(row, report_choice)
+
+                            # tambahkan ke daftar reported
                             st.session_state["reported"].append({
                                 "User": row["User"],
                                 "Review Text": row["Review Text"],
                                 "Date": row["Date (Parsed)"],
                                 "Kategori Report": report_choice
                             })
+
                             st.success(f"✅ Review from **{row['User']}** successfully reported and added to the list below!")
                             st.rerun()
                         except Exception as e:
